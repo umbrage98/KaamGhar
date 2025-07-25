@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
+from user.models import USER_TYPE_CHOICES
+
 User = get_user_model()
 
 # Serializer for the User model
@@ -20,6 +22,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     username = serializers.CharField(required=True)
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, min_length=8, required=True)
+    user_type = serializers.ChoiceField(choices=USER_TYPE_CHOICES, required=True)
     class Meta:
         model = User
         fields ='__all__'
@@ -37,6 +40,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
-            full_name=validated_data.get('full_name'),
+            user_type=validated_data['user_type']
         )
         return user
+class UserUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        exclude = ['password', 'is_superuser', 'is_staff', 'groups', 'user_permissions']

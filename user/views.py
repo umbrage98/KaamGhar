@@ -1,20 +1,16 @@
 from django.shortcuts import render
-
-# Create your views here.
-from django.urls import reverse
-from django.http import JsonResponse
+from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate, get_user_model
-from django.core.mail import send_mail
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import UserCreateSerializer, UserSerializer
-
-
+from .serializers import UserCreateSerializer, UserSerializer, UserUpdateSerializer
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import UpdateAPIView
 User = get_user_model()
-
+from rest_framework.parsers import MultiPartParser, FormParser
 class LoginView(TokenObtainPairView):
     """
     Custom login view that supports authentication via email or username.
@@ -46,14 +42,6 @@ class LoginView(TokenObtainPairView):
                     'access': str(refresh.access_token),
                     'refresh': str(refresh),
                 }, status=status.HTTP_200_OK)
-
-                response.set_cookie(
-                key="access_token",
-                value=str(refresh.access_token),
-                httponly=True,
-                secure=True,  # Must be True in production
-                samesite="None"  # Only use "None" when `secure=True`
-            )
                 return response
 
         except User.DoesNotExist:
@@ -66,6 +54,7 @@ class CreateUserView(APIView):
     """
     View for user registration.
     """
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
@@ -96,3 +85,38 @@ class UserLogoutView(APIView):
 
         return response
 
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
+    
+class UpdateProfileView(UpdateAPIView):
+    
+    serializer_class = UserUpdateSerializer
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    def get_object(self):
+        return self.request.user
+    
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        data = request.data
+
+        current_password = data.get("current_password")
+        new_password = data.get("new_password")
+
+        if not user.check_password(current_password):
+            return Response({"error": "Current password is incorrect."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not new_password or len(new_password) < 8:
+            return Response({"error": "New password must be at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)

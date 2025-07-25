@@ -25,7 +25,10 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
     
     
-
+USER_TYPE_CHOICES = [
+    ('business', 'Business'),
+    ('employee', 'Employee'),
+]
 class User(AbstractBaseUser, PermissionsMixin):
     def user_profile_pic_path(instance, filename):
         return f'profile_pics/user_{instance.id}/{filename}'
@@ -57,6 +60,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
+    credit_score = models.IntegerField(blank=True, null=True, default=100)
 
     groups = models.ManyToManyField(Group, related_name="custom_user_groups", blank=True)
     user_permissions = models.ManyToManyField(Permission, related_name="custom_user_permissions", blank=True)
